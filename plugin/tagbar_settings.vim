@@ -7,7 +7,7 @@ let g:loaded_tagbar_settings = 1
 " Set ctags
 let g:tagbar_ctags_bin = get(g:, 'tagbar_ctags_bin', 'ctags')
 
-if get(g:, 'tagbar_universal_ctags', system(g:tagbar_ctags_bin . ' --version') =~# 'Universal Ctags')
+if get(g:, 'tagbar_universal_ctags', 0) || (system(g:tagbar_ctags_bin . ' --version') =~# 'Universal Ctags')
     " Cucumber
     let g:tagbar_type_cucumber = {
                 \ 'ctagstype': 'cucumber',
