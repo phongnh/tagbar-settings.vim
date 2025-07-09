@@ -1,7 +1,18 @@
-# vim-tagbar-settings
-My extra tagbar settings for some file types
+# tagbar-settings.vim
 
-* css
-* coffee
-* objc
-* ruby
+Extra settings for languages:
+
+* Diff
+* Crystal
+* Cucumber
+* Elixir
+* Go
+* Groovy
+* JSON
+* Ruby
+* Rust
+* Vim9
+* Vlang
+* YAML
+* Zig
+

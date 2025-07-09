@@ -1,0 +1,113 @@
+#
+# Implement a CommitDiff format, where
+#  - the first pathname components stands for the old and new versions of the file.
+#    only the following path components (after the first) are found on the file system
+#  - the /dev/null file is used to identify file deletions and additions in the diff
+#  - if the file name is absolute (starts with a /) then the full file path is
+#    relevant and no leading path component is stripped
+#  - Some header lines about the commit, output by git, are matched and tagged
+#    (commit ID, Author, Date)
+#  - file names from the diff file are also scopes for their hunks
+#  - hunks are members of their files
+#  - the files appear as members of their parent path if references are enabled
+#    paths are referenced with "subpath" role
+#
+#  Kinds:
+#   - c commit
+#   - a author
+#   - C committer
+#   - t timestamp
+#   - p path
+#   - s changeset
+#   - h hunk
+#
+#  - no support for merge diffs, they add some differences
+#
+#  save this file as .ctags.d/commitdiff.ctags and universal ctags will load it automatically
+
+--langdef=CommitDiff
+--map-commitdiff=+.diff
+--map-commitdiff=+.patch
+
+--kinddef-commitdiff=c,commit,commit
+--kinddef-commitdiff=a,author,author
+--kinddef-commitdiff=C,comitter,committer
+--kinddef-commitdiff=t,timestamp,time stamp
+
+--kinddef-commitdiff=h,hunk,hunks
+--kinddef-commitdiff=s,changeset,file changeset
+--kinddef-commitdiff=p,path,file path
+
+--_scopesep-commitdiff=p/p:/
+--_scopesep-commitdiff=p/s:/
+
+--_fielddef-commitdiff=signature,author and time strings
+--_fielddef-commitdiff=path,file path
+--_fielddef-commitdiff=change,change
+--_fielddef-commitdiff=file,removed or renamed file
+--fields-commitdiff=+{signature}{path}{file}{change}
+
+--_roledef-commitdiff.{path}=subpath,reference a subdirectory or file
+
+--_tabledef-commitdiff=toplevel
+--_tabledef-commitdiff=pathname_add
+--_tabledef-commitdiff=pathname_delete
+--_tabledef-commitdiff=pathname_update
+--_tabledef-commitdiff=pathname_rename_old_all
+--_tabledef-commitdiff=pathname_rename_old_strip
+--_tabledef-commitdiff=pathname_rename_new
+
+# new pathname
+--_mtable-regex-commitdiff=pathname_add/([\/]*[^\/\n]+)\/+/\1/p,path/{scope=ref}{scope=push}{_role=subpath}
+--_mtable-regex-commitdiff=pathname_add/([\/]*[^\/\n]+)(\r?\n|$)/\1/s,changeset/{scope=ref}{scope=push}{_field=change:add}{tleave}
+
+# removed pathname
+--_mtable-regex-commitdiff=pathname_delete/([\/]*[^\/\n]+)\/+/\1/p,path/{scope=ref}{scope=push}{_role=subpath}
+--_mtable-regex-commitdiff=pathname_delete/([\/]*[^\/\n]+)(\r?\n)\+\+\+ \/dev\/null(\r?\n|$)/\1/s,changeset/{scope=ref}{scope=push}{_field=change:delete}{_field=file:}{tleave}
+
+# modified pathname
+--_mtable-regex-commitdiff=pathname_update/([\/]*[^\/\n]+)\/+/\1/p,path/{scope=ref}{scope=push}{_role=subpath}
+--_mtable-regex-commitdiff=pathname_update/([\/]*[^\/\n]+)(\r?\n|$)/\1/s,changeset/{scope=ref}{scope=push}{_field=change:update}{tleave}
+
+# renamed pathname
+--_mtable-regex-commitdiff=pathname_rename_old_all/(\/*[^\/\n]+)\/+/\1/p,path/{scope=ref}{scope=push}{_role=subpath}
+--_mtable-regex-commitdiff=pathname_rename_old_all/(\/*[^\/\n]+)\r?\n\+\+\+[[:blank:]]+/\1/s,changeset/{scope=ref}{_field=change:rename}{_field=file:}{scope=clear}{tjump=pathname_rename_new}
+--_mtable-regex-commitdiff=pathname_rename_old_strip/(\/*[^\/\n]+)\/+/\1/p,path/{scope=ref}{scope=push}{_role=subpath}
+--_mtable-regex-commitdiff=pathname_rename_old_strip/(\/*[^\/\n]+)\r?\n\+\+\+[[:blank:]]+[^\n\/]+\/+/\1/s,changeset/{scope=ref}{_field=change:rename}{_field=file:}{scope=clear}{tjump=pathname_rename_new}
+--_mtable-regex-commitdiff=pathname_rename_new/(\/*[^\/\n]+)\/+/\1/p,path/{scope=ref}{scope=push}{_role=subpath}
+--_mtable-regex-commitdiff=pathname_rename_new/(\/*[^\/\n]+)(\r?\n|$)/\1/s,changeset/{scope=ref}{scope=push}{_field=change:renamed}{tleave}
+
+# commit header
+--_mtable-regex-commitdiff=toplevel/^commit\s+([[:alnum:]_]+)(\r?\n|$)/\1/c,commit/
+--_mtable-regex-commitdiff=toplevel/^Author:\s+([^\n]+)(\r?\n|$)/\1/a,author/
+--_mtable-regex-commitdiff=toplevel/^Committer:\s+([^\n]+)(\r?\n|$)/\1/C,comitter/
+--_mtable-regex-commitdiff=toplevel/^Date:\s+([^\n]+)(\r?\n|$)/\1/t,timestamp/
+
+# added files
+--_mtable-regex-commitdiff=toplevel/--- \/dev\/null\r?\n\+\+\+ ((\/+[^\n\/]+)+)(\r?\n|$)///{scope=clear}{tenter=pathname_add}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- \/dev\/null\r?\n\+\+\+ ([^\n\/]+)(\r?\n|$)///{scope=clear}{tenter=pathname_add}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- \/dev\/null\r?\n\+\+\+ [^\n\/]+\/(([^\n]+\/)?([^\n\/]+))(\r?\n|$)///{scope=clear}{tenter=pathname_add}{_advanceTo=1start}
+
+# deleted files
+--_mtable-regex-commitdiff=toplevel/--- ((\/+[^\n\/]+)+)\r?\n\+\+\+ \/dev\/null(\r?\n|$)///{scope=clear}{tenter=pathname_delete}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- ([^\n\/]+)\r?\n\+\+\+ \/dev\/null(\r?\n|$)///{scope=clear}{tenter=pathname_delete}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- [^\n\/]+\/(([^\n]+\/)?([^\n\/]+))\r?\n\+\+\+ \/dev\/null(\r?\n|$)///{scope=clear}{tenter=pathname_delete}{_advanceTo=1start}
+
+# changed files
+--_mtable-regex-commitdiff=toplevel/--- \(\(\/\{1,\}[^\n\/]\{1,\}\)\{1,\}\)\r\{0,1\}\n+++ \(\1\)\r\{0,1\}\n///{basic}{scope=clear}{tenter=pathname_update}{_advanceTo=3start}
+--_mtable-regex-commitdiff=toplevel/--- \([^\n]\{1,\}\)\r\{0,1\}\n+++ \(\1\)\r\{0,1\}\n///{basic}{scope=clear}{tenter=pathname_update}{_advanceTo=2start}
+--_mtable-regex-commitdiff=toplevel/--- [^\n\/]\{1,\}\/\{1,\}\(\([^\n]\{1,\}\/\)\{0,1\}\([^\n\/]\{1,\}\)\)\r\{0,1\}\n+++ [^\n\/]\{1,\}\/\{1,\}\(\1\)\r\{0,1\}\n///{basic}{scope=clear}{tenter=pathname_update}{_advanceTo=4start}
+
+# renamed files
+--_mtable-regex-commitdiff=toplevel/--- ((\/+[^\n\/]+)+)\r?\n\+\+\+ [^\n]+[^\n\/](\r?\n|$)///{scope=clear}{tenter=pathname_rename_old_all}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- ([^\n]+[^\n\/])\r?\n\+\+\+ (\/+[^\n\/]+)+(\r?\n|$)///{scope=clear}{tenter=pathname_rename_old_all}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- ([^\n\/]+)\r?\n\+\+\+ [^\n]+[^\n\/](\r?\n|$)///{scope=clear}{tenter=pathname_rename_old_all}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- ([^\n]+[^\n\/])\r?\n\+\+\+ [^\n\/]+(\r?\n|$)///{scope=clear}{tenter=pathname_rename_old_all}{_advanceTo=1start}
+--_mtable-regex-commitdiff=toplevel/--- [^\n\/]+\/(([^\n]+\/)?[^\n\/]+)\r?\n\+\+\+ [^\n\/]+\/([^\n]+\/)?[^\n\/]+(\r?\n|$)///{scope=clear}{tenter=pathname_rename_old_strip}{_advanceTo=1start}
+
+# hunks
+--_mtable-regex-commitdiff=toplevel/@@ ([-+[:digit:],[:blank:]]+) @@( [^\n]+)\r?\n/@@ \1/h,hunk/{scope=ref}{_field=signature:\2}
+--_mtable-regex-commitdiff=toplevel/@@ ([-+[:digit:],[:blank:]]+) @@[:blank:]*\r?\n/@@ \1/h,hunk/{scope=ref}
+
+# default match for any other lines in the diff
+--_mtable-regex-commitdiff=toplevel/[^\n]*(\r?\n|$)///
